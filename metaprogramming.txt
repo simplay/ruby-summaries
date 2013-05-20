@@ -1,0 +1,206 @@
+Chapter 1 - Monday
+*******************
+
+interesting passages,ideas from this chapter:
+**********************************************
+
++Can you call a private method that you inherited from a superclass? The answer is yes
+first, you need an explicit receiver to call a method on an object that is not yourself, and second, private methods can be called only with an implicit receiver. Put these two rules together, and you’ll see that you can only call a private method on yourself. You can call this the “private rule.”
+
++When Book includes Document, Ruby creates an include class for Document and adds it to Book’s ancestors chain right above Book itself.
+
+obj = A.new
+how ruby finds a method:
+
+obj.class
+has_method?
+until found
+  NO=> *.superclass
+  has_method?
+otherwise method doesnt exist
+
+obj.ancestors => also lists modules within chain
+in particular, when you call a method, the receiver becomes self
+
+keywords:
+**********
++open classes,
++monkey patch
+  overload by monkey patching def during runtime
++instance variables:exist iff invoked
++instance_method, method
++use load( ) to execute code, and use require( ) to import libraries
++superclass - parent class of considered class
++class - object type
++method lookup
+
+
+Chapter Summary:
+*****************
++An object is composed of a bunch of instance variables and a link to a class.
+
++The methods of an object live in the object’s class (from the point of view of the class, they’re called instance methods).
+
++The class itself is just an object of class Class. The name of the class is just a constant.
+
++Class is a subclass of Module. A module is basically a package of methods. In addition to that, a class can also be instantiated (with new( )) or arranged in a hierarchy (through its superclass( )).
+
++Constants are arranged in a tree similar to a file system, where the names of modules and classes play the part of directories and regular constants play the part of files.
+
++Each class has an ancestors chain, beginning with the class itself and going up to BasicObject.
+
++When you call a method, Ruby goes right into the class of the receiver and then up the ancestors chain, until it either finds the method or reaches the end of the chain.
+
++Every time a class includes a module, the module is inserted in the ancestors chain right above the class itself.
+
++When you call a method, the receiver takes the role of self.
+
++When you’re defining a module (or a class), the module takes the
+role of self.
+
++Instance variables are always assumed to be instance variables of
+self.
+
++Any method called without an explicit receiver is assumed to be a
+method of self.
+
+
+Chapter 2 - Thusday
+*******************
+
+
+terms
+
+static typed languages
+  boilerplate methods: getters,setters
+dynamic languages
+
+
+class Myclass
+  def my_method(arg)
+    arg * 3
+  end
+end
+
+obj = MyClass.new
+obj.my_method(3)  # => 6
+vs
+obj.send(:my_method, 3)
+  dynamic dispatch(send): wait literally until the very last moment to decide which method to call, while the code is running.
+  
+symbols, not same as string, but similar (rather pointers...)
+are immutable, some ops performed on symbols are faster than on strings
+convention: use symbols for metaprogramming related code
+String to Symbol: str.to_sym
+
+It can discover the keys you need only at runtime, by parsing the YAML file. For this reason, Camping resorts to Dynamic Dispatch. For each key-value pair, it composes the name of an assignment method, such as admin=( ), and sends the method to conf:
+
+if conf.rc and File.exists?( conf.rc ) 
+  YAML.load_file(conf.rc).each do |k,v|
+    conf.send("#{k}=", v)
+  end 
+end
+
+NB: 
+class Person
+  attr_accessor :fname, :lname
+=> p = Person.new; p.fname; p.lname = "single"
+
+NB2: public_send() cannot access a object's private methods, whereas send() may access them and hence break encapsulation.
+
+Dynamic Method: def. methods dynamically
+whithin a given class (or even by invoking an object)  write
+define_method :my_method do |my_arg|
+  my_arg * 3
+end
+
+refactoring example
+
+class Computer
+  def initialize(computer_id, data_source)
+      @id = computer_id
+      @data_source = data_source
+      # string matching regex is stored in $1
+      data_source.methods.grep(/^get_(.*)_info$/) { Computer.define_component $1 }
+  end
+  
+  def self.define_component(name) 
+    define_method(name) do
+      info = @data_source.send "get_#{name}_info", @id 
+      price = @data_source.send "get_#{name}_price", @id 
+      result = "#{name.capitalize}: #{info} ($#{price})" 
+      return "* #{result}" if price >= 100
+      result
+    end
+  end
+end
+
+method_missing(), defined within BasicObject
+  you can call a method that doesn’t exist
+  then, if it doesn't exist, it may cause a NoMethodError
+  solution: override method missing 
+    => allows us to call methods that don’t really exist
+  
+example
+
+
+class Lawyer
+  def method_missing(method, *args)
+    puts "You called: #{method}(#{args.join(', ')})"
+    puts "(You also passed it a block)" if block_given? 
+  end
+end
+
+bob = Lawyer.new bob.talk_simple('a', 'b') do
+# a block
+end
+
+OpenStruct class => require 'ostruct'
+ The attributes of an OpenStruct object work like Ruby vari- ables. If you want a new attribute, just assign it a value, and it will spring into existence
+ 
+ 
+class Manager < DelegateClass(Assistant) 
+  def initialize(assistant)
+    super(assistant) 
+  end
+end
+
+Manager inherits this method_missing( ), so it becomes a proxy of the wrapped object. 
+As a result, the Manager forwards to her Assis- tant all the messages she doesn’t understand:
+
+
+class Computer
+  def initialize(computer_id, data_source)
+      @id = computer_id
+      @data_source = data_source
+  end
+
+  def method_missing(name, *args)
+    super if !@data_source.respond_to?("get_#{name}_info") 
+    info = @data_source.send("get_#{name}_info", args[0]) 
+    price = @data_source.send("get_#{name}_price", args[0]) 
+    result = "#{name.to_s.capitalize}: #{info} ($#{price})" 
+    return "* #{result}" if price >= 100
+    result
+  end 
+end
+
+class Computer
+  def respond_to?(method)
+    @data_source.respond_to?("get_#{method}_info") || super 
+    end
+
+VERY IMPORTANT: always define your variables, otherwise nasty ghosting method assumptions may occur (Roulette example) 
+NB: Whenever the name of a Ghost Method clashes with the name of a real, inherited method, the latter wins
+
+inherits from a Blank Slate:
+Module#undef_ method( ) removes all methods, including the inherited ones 
+Module#remove_method() removes the method from the receiver, but it leaves inherited methods alone.
+
+
+class Computer 
+  instance_methods.each do |m|
+    undef_method m unless m.to_s =~ /^__|method_missing|respond_to?/
+  end
+  
+  
