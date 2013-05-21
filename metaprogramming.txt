@@ -202,5 +202,118 @@ class Computer
   instance_methods.each do |m|
     undef_method m unless m.to_s =~ /^__|method_missing|respond_to?/
   end
-  
-  
+
+
+
+Chapter 3 - Wednesday
+*********************
+blocks => controll scope
+belong to family of callable objects such as lambdas and procs
+yield keyword - executes/calls a block - yield block(args)
+neat trick: return yield if block_given?
+fake: new keyword by add new method to Kernel module
+begin
+# some code
+ensure
+* always_executed_code
+blocks grap the env. binding from the scope they are called at
+a block is a closure: a block captures the local bindings and carries them along with it.
+example: 
+x = "Hello"my_method {|y| "#{x}, #{y} world" } # => "Hello, cruel world"
+regardless wherever my_method is yield nor there is aready a veriable defined within the scope this block is called, it uses its own x, i.e. x=="hello"
+
+A block captures the bindings that are around when you first define the block. You can also define additional bindings inside the block, but they disappear after the block ends
+
+scope in ruby
+Some languages, such as Java and C#, allow an “inner scope” to see variables from an “outer scope.” That kind of nested visibility doesn’t happen in Ruby, where scopes are sharply separated: as soon as you enter a new scope, the previous bindings are simply replaced by a new set of bindings.
+
+scope gates: places a program opens a new scope in ruby
+there is for each of them a keyword, acting like a scope gate
+class definition: class 
+module definition: module
+method defintion: def
+
+what if you want to pass a variable through one of these spots?
+
+global variable: $var
+top_lvl_var: @var
+a top-level instance variable in place of a global variable. These are the instance variables of the top-level main object
+class_var: @@var
+local_var: var
+
+The code in a class or module definition is executed immediately (code from method, when invoked)
+
+flatten the scope: pass bindings through a Scope Gate 
+=> nested lexical scopes
+you can also define instance methods in the class if you pass a block to Class.new( ):  
+how can you pass my_var through the def Scope Gate: Instead of def, you can use Module#define_method( ):
+
+sharing scope
+ssume that you want to share a variable among a few methods, and you don’t want anybody else to see that variable. You can do that by defining all the methods in the same Flat Scope as the variable
+
+def define_methods	shared = 0	Kernel.send :define_method, :counter do 
+		shared	end	Kernel.send :define_method, :inc do |x| 
+		shared += x	end 
+end
+
+If you want to sneak a binding or two through a Scope Gate, you can replace the Scope Gate with a method call: 
+you capture the current bindings in a closure and pass the closure to the method
+
+instance_eval  - write into class some additional code
+
+The block is evaluated with the receiver as self, so it can access the receiver’s private methods and instance variables, such as @v. Even if instance_eval( ) changes self, it leaves all the other bindings alone
+
+you can call the block that you pass to instance_eval() a Context Probeinstance_exec() is similar to instance_eval(), but it also allows you to pass arguments to the block:
+
+places for "package code first, call it later” mechanism:
+• In a proc, which is basically a block turned object 
+• In a lambda, which is a slight variation on a proc 
+• In a method
+
+A Proc is a block that has been turned into an object
+Deferred Evaluation ==> 
+inc = Proc.new {|x| x + 1 }; inc.call(2)
+
+achievable via: lambda( ), proc( ), and Proc.new( ), and & operator
+
+A block is like an additional, anonymous argument to a method. In most cases, you execute the block right there in the method, using yield. 
+attach a binding to the block, you can add one special argument to the method. This argument must be the last in the list of arguments and prefixed by an & sign
+
+def math(a, b) 
+	yield(a, b)end
+
+def teach_math(a, b, &operation) 
+	puts "Let's do the math:"	puts math(a, b, &operation)end
+
+teach_math(2, 3) {|x, y| x * y}
+
+without a block, the &operation argument is bound to nil
+The real meaning of the & is: This is a Proc that I want to use as a block.” Just drop the &, and you’ll be left with a Proc again
+
+When you call my_method(), the & converts my_proc to a block andpasses that block to the method.
+
+LAMBDA vs PROC
+In a lambda, return just returns from the lambda:
+In a proc, return behaves differently. Rather than return from the proc,it returns from the scope where the proc itself was defined:
+Call a lambda with the wrong arity, and it fails with an ArgumentError. On the other hand, a proc fits the argument list to its own expectations:
+
+p = Proc.new {|a, b| [a, b]}p.call(1, 2, 3)   # => [1, 2]p.call(1)         # => [1, nil]
+
+“stabby lambda” operator (new syntax for lambdas):
+
+p = ->(x) { x + 1 } 
+is the same like
+p = lambda {|x| x + 1 }
+
+A Method object is sim- ilar to a lambda, with an important difference: a lambda is evaluated in the scope it’s defined in (it’s a closure, remember?), while a Method is evaluated in the scope of its object.
+You can detach a method from its object with Method#unbind() (returns an Un
+
+boundObjectMethod)
+and again rebind later
+
+Callable Objects:
+Blocks,Procs,Lambdas,Methods
+
+
+def event(name, &block) 
+	@events[name] = blockend
